@@ -372,12 +372,19 @@
       color: #FFFFFF;
       font-size: inherit;
       font-family: inherit;
+      text-align: left;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .btn-abrir-pasta:hover {
       background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.3);
       transform: scale(1.005);
+    }
+
+    .btn-abrir-pasta:active {
+      transform: scale(0.98);
     }
 
     .btn-abrir-pasta.aberto {
@@ -390,6 +397,7 @@
       display: flex;
       align-items: center;
       gap: 16px;
+      pointer-events: none;
     }
 
     .btn-icone {
@@ -399,6 +407,7 @@
 
     .btn-texto {
       text-align: left;
+      pointer-events: none;
     }
 
     .btn-texto h3 {
@@ -418,6 +427,7 @@
       font-size: clamp(22px, 4vw, 32px);
       color: #888;
       transition: transform 0.3s ease;
+      pointer-events: none;
     }
 
     .btn-abrir-pasta.aberto .btn-seta {
@@ -903,7 +913,7 @@
       <!-- EDITS - PASTA DE FOTOS -->
       <div id="tab-edits" class="tab-pane">
         <div class="edits-container">
-          <!-- BOTÃO PARA ABRIR A PASTA -->
+          <!-- BOTÃO PARA ABRIR A PASTA - TOTALMENTE CLICÁVEL -->
           <button class="btn-abrir-pasta" id="btnAbrirPasta" type="button">
             <div class="btn-left">
               <span class="btn-icone">📁</span>
@@ -973,14 +983,13 @@
     // ============================================================
     // 🔧 CONFIGURAÇÕES - ALTERE AQUI!
     // ============================================================
-    const SENHA_ADMIN = 'elojob2026';
+    const SENHA_ADMIN = '991179467';
     
     // DADOS DO GITHUB - COLOQUE OS SEUS AQUI
-    const GITHUB_USERNAME = 'SEU_USERNAME'; // Substitua pelo seu usuário
+    const GITHUB_USERNAME = 'KyoCore'; // Substitua pelo seu usuário
     const GITHUB_REPO = 'elojob-fotos'; // Nome do repositório
-    const GITHUB_TOKEN = 'SEU_TOKEN_GITHUB'; // Token que você gerou
+    const GITHUB_TOKEN = 'ghp_o1YweB5SlkN2HnES1IEo32RzQIJZhZ0'; // Token que você gerou
     
-    // ARQUIVO QUE GUARDA A LISTA DE FOTOS
     const FOTOS_JSON = 'fotos.json';
 
     // ============================================================
@@ -1015,13 +1024,12 @@
     // ESTADO
     // ============================================================
     let isAdmin = false;
-    let fotos = []; // array de URLs
+    let fotos = [];
 
     // ============================================================
     // FUNÇÕES GITHUB
     // ============================================================
 
-    // Buscar o arquivo fotos.json do GitHub
     async function buscarFotos() {
       try {
         const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${FOTOS_JSON}`;
@@ -1033,7 +1041,6 @@
         });
 
         if (response.status === 404) {
-          // Arquivo não existe, criar vazio
           return [];
         }
 
@@ -1050,10 +1057,8 @@
       }
     }
 
-    // Salvar lista de fotos no GitHub
     async function salvarFotosGitHub(lista) {
       try {
-        // Primeiro, pegar o SHA do arquivo atual (se existir)
         const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${FOTOS_JSON}`;
         let sha = null;
         
@@ -1068,9 +1073,7 @@
             const data = await getResponse.json();
             sha = data.sha;
           }
-        } catch (e) {
-          // Arquivo não existe, seguir em frente
-        }
+        } catch (e) {}
 
         const content = btoa(unescape(encodeURIComponent(JSON.stringify(lista, null, 2))));
         const body = {
@@ -1105,14 +1108,12 @@
       }
     }
 
-    // Upload de imagem para o GitHub
     async function uploadImagemGitHub(file) {
       try {
         const timestamp = Date.now();
         const nomeArquivo = `foto_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
         const path = `imagens/${nomeArquivo}`;
         
-        // Ler o arquivo como base64
         const reader = new FileReader();
         const base64 = await new Promise((resolve, reject) => {
           reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -1143,7 +1144,6 @@
           throw new Error(`Erro no upload: ${JSON.stringify(errorData)}`);
         }
 
-        // URL pública da imagem
         const imageUrl = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/${path}`;
         return imageUrl;
       } catch (error) {
@@ -1152,14 +1152,11 @@
       }
     }
 
-    // Remover imagem do GitHub
     async function removerImagemGitHub(url) {
       try {
-        // Extrair o path da URL
         const parts = url.split('/');
         const path = parts.slice(parts.indexOf('main') + 1).join('/');
         
-        // Buscar SHA do arquivo
         const urlApi = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${path}`;
         const getResponse = await fetch(urlApi, {
           headers: {
@@ -1168,7 +1165,7 @@
           }
         });
 
-        if (!getResponse.ok) return;
+        if (!getResponse.ok) return false;
 
         const data = await getResponse.json();
         const sha = data.sha;
@@ -1198,7 +1195,6 @@
     // FUNÇÕES PRINCIPAIS
     // ============================================================
 
-    // Carregar fotos
     async function carregarFotos() {
       try {
         const lista = await buscarFotos();
@@ -1207,25 +1203,22 @@
         atualizarContador();
       } catch (error) {
         console.error('Erro ao carregar fotos:', error);
-        // Tentar novamente após 10s
         setTimeout(carregarFotos, 10000);
       }
     }
 
-    // Renderizar galeria
     function renderizarGaleria() {
       galeriaGrid.innerHTML = '';
       
       if (fotos.length === 0) {
         if (isAdmin) {
-          // Mostra placeholders vazios para admin
           for (let i = 0; i < 8; i++) {
             const div = criarPlaceholder(i);
             galeriaGrid.appendChild(div);
           }
         } else {
           const msg = document.createElement('div');
-          msg.style.cssText = 'grid-column:1/-1;text-align:center;color:#888;padding:40px 0;';
+          msg.style.cssText = 'grid-column:1/-1;text-align:center;color:#888;padding:40px 0;font-size:16px;';
           msg.textContent = '📸 Nenhuma foto ainda. Volte em breve!';
           galeriaGrid.appendChild(msg);
         }
@@ -1261,7 +1254,6 @@
         galeriaGrid.appendChild(div);
       });
 
-      // Se admin e menos de 20 fotos, mostrar botão de adicionar
       if (isAdmin && fotos.length < 20) {
         const div = document.createElement('div');
         div.className = 'foto-item';
@@ -1299,7 +1291,6 @@
       fotosCount.textContent = fotos.length;
     }
 
-    // Abrir seletor de arquivos (admin)
     function abrirSeletorArquivo() {
       if (!isAdmin) return;
 
@@ -1341,7 +1332,6 @@
       input.click();
     }
 
-    // Remover foto (admin)
     async function removerFoto(index) {
       const url = fotos[index];
       loadingOverlay.classList.add('ativo');
@@ -1359,7 +1349,6 @@
       }
     }
 
-    // Visualização em tela cheia
     function abrirVisualizacao(url) {
       modalImagem.src = url;
       modalVisualizacao.classList.add('aberto');
@@ -1408,7 +1397,6 @@
     // EVENTOS
     // ============================================================
 
-    // Abas
     tabs.forEach(btn => {
       btn.addEventListener('click', function() {
         const tab = this.dataset.tab;
@@ -1420,10 +1408,11 @@
       });
     });
 
-    // Abrir/fechar pasta
+    // ===== BOTÃO DA PASTA - CORRIGIDO =====
     btnAbrirPasta.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
+      
       const isAberta = pastaConteudo.classList.toggle('aberto');
       this.classList.toggle('aberto');
       
@@ -1497,22 +1486,6 @@
 
     console.log('🔑 Senha admin:', SENHA_ADMIN);
     console.log('📁 Repositório:', GITHUB_USERNAME + '/' + GITHUB_REPO);
-    console.log('📸 Fotos carregadas:', fotos.length);
-
-    // EXPOR para debug
-    window.__admin = {
-      isAdmin,
-      fotos,
-      autenticarAdmin,
-      desautenticarAdmin,
-      SENHA_ADMIN,
-      carregarFotos,
-      uploadImagemGitHub,
-      salvarFotosGitHub,
-      GITHUB_Kyo_Core,
-      GITHUB_elojob-fotos,
-      GITHUB_ghp_o1YweB5SlkN2HnES1IEo32RzQIJZhZ0
-    };
 
   })();
 </script>
